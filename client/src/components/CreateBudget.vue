@@ -1,44 +1,100 @@
 <template>
-  <div>
-      <div v-if="isOverBudget">Danger.  You are over budget</div>
-      <div class="budget-container">
-        <h3>Enter a name:</h3>
-        <div>
-          <input type="text" v-model="name">
-        </div>
-        <h3>Enter your income:</h3>
-        <div v-for="(income, index) in incomes" v-bind:key="index">
-          <div>
-            <input type="text" v-model="income.name" placeholder="Enter a name">
-          </div>
-          <div>
-            <input type="number" v-model="income.amount" placeholder="Enter an amount">
-          </div>
-          <div>
-            <button v-if="incomes.length-1 == index" @click="addIncome">Add income</button>
-          </div>
-        </div>
-        <span>Total income: {{totalIncome}}</span>
-        <h3>Enter your expenses:</h3>
-        <div v-for="(expense, index) in expenses" v-bind:key="index">
-          <div>
-            <input type="text" v-model="expense.name" placeholder="Enter a name">
-          </div>
-          <div>
-            <input type="number" v-model="expense.amount" placeholder="Enter an amount">
-          </div>
-          <div>
-            <button v-if="expenses.length-1 == index" @click="addExpense">Add expense</button>
-            <button v-if="expenses.length-1 > index" @click="removeExpense(index)">X</button>
-          </div>
-          <div>
-          </div>
-        </div>
-        <span>Total expenses: {{totalExpenses}}</span>
-      </div>
-      <div v-show="!isOverBudget">You have ${{budgetBalance}} remaining</div>
-      <div v-show="isOverBudget">You are ${{budgetBalance*-1}} over budget</div>
-    </div>
+<v-form ref="form">
+  <v-layout row justify-center>
+    <v-dialog v-model="dialog" persistent max-width="600px">
+      <v-card>
+        <v-card-title>
+          <span class="headline">Create Budget</span>
+        </v-card-title>
+        <v-card-text>
+          <v-container grid-list-md>
+            <v-layout wrap>
+              <v-flex xs12>
+                <v-text-field v-model="name" label="Enter Budget Name*" required></v-text-field>
+              </v-flex>
+              <v-flex xs12>
+                <v-textarea v-model="description" label="Enter a description"></v-textarea>
+              </v-flex>
+            </v-layout>
+          </v-container>
+          <small>*indicates required field</small>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="blue darken-1" flat @click="dialog = false; dialog2 = true">Next</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+<v-dialog v-model="dialog2" scrollable persistent max-width="600px">
+  <v-card>
+    <v-card-title>
+      <span class="headline">
+        Enter your incomes
+      </span>
+     </v-card-title>
+     <v-card-text>
+       <v-container>
+        <v-layout v-for="(income, index) in incomes" v-bind:key="index"  wrap>
+          <v-flex xs6 md4>
+            <v-text-field v-model="income.name" label="Enter a description" required></v-text-field>
+          </v-flex>
+          <v-flex xs6 md4>
+            <v-text-field v-model="income.amount" label="Enter an amount"></v-text-field>
+          </v-flex>
+          <v-flex xs6 md4>
+          <v-btn v-if="incomes.length-1 == index" @click="addIncome">Add income</v-btn>
+          <v-btn v-if="incomes.length-1 > index" @click="removeIncome(index)">X</v-btn>
+          </v-flex>
+        </v-layout>
+        <v-card-text>Total income: {{totalIncome}}</v-card-text>
+        </v-container>
+     </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="blue darken-1" flat @click="dialog2 = false; dialog3 = true;">Next</v-btn>
+        </v-card-actions>
+  </v-card>
+</v-dialog>
+<v-dialog v-model="dialog3" scrollable persistent max-width="600px">
+   <v-card>
+    <v-card-title>
+      <span class="headline">
+        Enter your expenses
+      </span>
+     </v-card-title>
+     <v-card-text>
+       <v-container>
+        <v-layout v-for="(expense, index) in expenses" v-bind:key="index"  wrap>
+          <v-flex xs12 sm6 md4>
+            <v-text-field v-model="expense.name" label="Enter a description" required></v-text-field>
+          </v-flex>
+          <v-flex xs12 sm6 md4>
+            <v-text-field v-model="expense.amount" label="Enter an amount"></v-text-field>
+          </v-flex>
+          <v-flex xs12 sm6 md4>
+            <v-btn v-if="expenses.length-1 == index" @click="addExpense">Add expense</v-btn>
+            <v-btn v-if="expenses.length-1 > index" @click="removeExpense(index)">X</v-btn>
+          </v-flex>
+        </v-layout>
+        <v-card-text>
+          Total expenses: {{totalExpenses}}
+        </v-card-text>
+        <v-card-text v-show="!isOverBudget">
+          You have ${{budgetBalance}} remaining
+        </v-card-text>
+        </v-container>
+     </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="blue darken-1" flat @click="dialog3 = false">Next</v-btn>
+        </v-card-actions>
+  </v-card>
+</v-dialog>
+<v-snackbar color="red" top="true" v-model="isOverBudget">
+  Danger. You are over budget
+</v-snackbar>
+  </v-layout>
+</v-form>
 </template>
 
 <script>
@@ -46,9 +102,14 @@ export default {
   name: 'CreateBudget',
   data () {
     return {
+      dialog: true,
+      dialog2: false,
+      dialog3: false,
+      overBudgetDialog: false,
       name: '',
       expenses: [{ name: '', amount: 0 }],
-      incomes: [{ name: '', amount: 0 }]
+      incomes: [{ name: '', amount: 0 }],
+      description: ''
     }
   },
   methods: {
@@ -59,8 +120,10 @@ export default {
       this.incomes.push({ name: '', amount: 0 })
     },
     removeExpense (idx) {
-      console.log('Removing at ' + idx)
       this.expenses.splice(idx, 1)
+    },
+    removeIncome (idx) {
+      this.incomes.splice(idx, 1)
     }
   },
   computed: {
@@ -92,28 +155,4 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-
-div.budget-container {
-  float: left;
-  padding: 30px;
-}
-div.budget-container > div div {
-  width:250px;
-  display: inline;
-  padding: 30px;
-}
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
 </style>
