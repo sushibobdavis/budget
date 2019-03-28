@@ -1,7 +1,7 @@
 <template>
 <v-form ref="form">
   <v-layout row justify-center>
-    <v-dialog v-model="dialog" persistent max-width="600px">
+    <v-dialog v-model="isStepOne" scrollable persistent max-width="600px">
       <v-card>
         <v-card-title>
           <span class="headline">Create Budget</span>
@@ -10,22 +10,38 @@
           <v-container grid-list-md>
             <v-layout wrap>
               <v-flex xs12>
-                <v-text-field v-model="name" label="Enter Budget Name*" required></v-text-field>
+                <v-text-field v-model="name" label="Enter Budget Name" required></v-text-field>
               </v-flex>
               <v-flex xs12>
                 <v-textarea v-model="description" label="Enter a description"></v-textarea>
               </v-flex>
+              <v-flex xs12>
+                <v-menu
+          v-model="dateFromActive"
+          :close-on-content-click="false"
+          transition="scale-transition"
+        >
+          <template>
+            <v-text-field
+              v-model="dateFrom"
+              label="Picker without buttons"
+              prepend-icon="event"
+              readonly
+            ></v-text-field>
+          </template>
+          <v-date-picker v-model="dateFrom" @input="dateFromActive = false"></v-date-picker>
+        </v-menu>
+              </v-flex>
             </v-layout>
           </v-container>
-          <small>*indicates required field</small>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="blue darken-1" flat @click="dialog = false; dialog2 = true">Next</v-btn>
+          <v-btn color="blue darken-1" flat @click="incrementStep">Next</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
-<v-dialog v-model="dialog2" scrollable persistent max-width="600px">
+<v-dialog v-model="isStepTwo" scrollable persistent max-width="600px">
   <v-card>
     <v-card-title>
       <span class="headline">
@@ -39,11 +55,11 @@
             <v-text-field v-model="income.name" label="Enter a description" required></v-text-field>
           </v-flex>
           <v-flex xs6 md4>
-            <v-text-field v-model="income.amount" label="Enter an amount"></v-text-field>
+            <v-text-field type="number" v-model="income.amount" label="Enter an amount"></v-text-field>
           </v-flex>
           <v-flex xs6 md4>
-          <v-btn v-if="incomes.length-1 == index" @click="addIncome">Add income</v-btn>
-          <v-btn v-if="incomes.length-1 > index" @click="removeIncome(index)">X</v-btn>
+          <v-btn v-if="index == 0" @click="addIncome">Add income</v-btn>
+          <v-btn v-if="index > 0" @click="removeIncome(index)">X</v-btn>
           </v-flex>
         </v-layout>
         <v-card-text>Total income: {{totalIncome}}</v-card-text>
@@ -51,11 +67,12 @@
      </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="blue darken-1" flat @click="dialog2 = false; dialog3 = true;">Next</v-btn>
+          <v-btn color="blue darken-1" flat @click="decrementStep">Prev</v-btn>
+          <v-btn color="blue darken-1" flat @click="incrementStep">Next</v-btn>
         </v-card-actions>
   </v-card>
 </v-dialog>
-<v-dialog v-model="dialog3" scrollable persistent max-width="600px">
+<v-dialog v-model="isStepThree" scrollable persistent max-width="600px">
    <v-card>
     <v-card-title>
       <span class="headline">
@@ -69,11 +86,11 @@
             <v-text-field v-model="expense.name" label="Enter a description" required></v-text-field>
           </v-flex>
           <v-flex xs12 sm6 md4>
-            <v-text-field v-model="expense.amount" label="Enter an amount"></v-text-field>
+            <v-text-field type="number" v-model="expense.amount" label="Enter an amount"></v-text-field>
           </v-flex>
           <v-flex xs12 sm6 md4>
-            <v-btn v-if="expenses.length-1 == index" @click="addExpense">Add expense</v-btn>
-            <v-btn v-if="expenses.length-1 > index" @click="removeExpense(index)">X</v-btn>
+            <v-btn v-if="index == 0" @click="addExpense">Add expense</v-btn>
+            <v-btn v-if="index > 0" @click="removeExpense(index)">X</v-btn>
           </v-flex>
         </v-layout>
         <v-card-text>
@@ -86,11 +103,12 @@
      </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="blue darken-1" flat @click="dialog3 = false">Next</v-btn>
+          <v-btn color="blue darken-1" flat @click="decrementStep">Prev</v-btn>
+          <v-btn color="blue darken-1" flat @click="dialog3 = false">Save</v-btn>
         </v-card-actions>
   </v-card>
 </v-dialog>
-<v-snackbar color="red" top="true" v-model="isOverBudget">
+<v-snackbar color="red" v-model="isOverBudget">
   Danger. You are over budget
 </v-snackbar>
   </v-layout>
@@ -102,37 +120,39 @@ export default {
   name: 'CreateBudget',
   data () {
     return {
-      dialog: true,
-      dialog2: false,
-      dialog3: false,
-      overBudgetDialog: false,
+      step: 1,
       name: '',
       expenses: [{ name: '', amount: 0 }],
       incomes: [{ name: '', amount: 0 }],
-      description: ''
+      description: '',
+      dateFrom: new Date().toISOString().substr(0, 10),
+      dateTo: new Date().toISOString().substr(0, 10),
+      doNotUseDates: false,
+      dateFromActive: true,
+      dateToActive: true
     }
   },
   methods: {
     addExpense () {
-      this.expenses.push({ name: '', amount: 0 })
+      this.expenses.unshift({ name: '', amount: 0 })
     },
     addIncome () {
-      this.incomes.push({ name: '', amount: 0 })
+      this.incomes.unshift({ name: '', amount: 0 })
     },
     removeExpense (idx) {
       this.expenses.splice(idx, 1)
     },
     removeIncome (idx) {
       this.incomes.splice(idx, 1)
+    },
+    incrementStep () {
+      this.step++
+    },
+    decrementStep () {
+      this.step--
     }
   },
   computed: {
-    numberOfBudgetItems () {
-      return this.expenses.length
-    },
-    alltheNames () {
-      return this.expenses.map(x => x.name).join(',')
-    },
     totalExpenses () {
       return this.expenses.filter(x => !isNaN(Number(x.amount)))
         .map(x => ({ amount: parseFloat(x.amount) }))
@@ -148,6 +168,15 @@ export default {
     },
     isOverBudget () {
       return (this.budgetBalance) < 0
+    },
+    isStepOne () {
+      return this.step === 1
+    },
+    isStepTwo () {
+      return this.step === 2
+    },
+    isStepThree () {
+      return this.step === 3
     }
   }
 }
